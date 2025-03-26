@@ -1,96 +1,78 @@
-import random
-import tkinter as tk
+import sys
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QMovie
+from PyQt5.QtWidgets import QApplication, QLabel
 
-# Global vars
-x = 700        # Start near middle of screen (adjust as needed)
-cycle = 0
-check = 0      # Start in idle
-event_number = random.randrange(1, 10)
-impath = '/Users/williamparker/Desktop/Luna Gift (Desktop Code)/Gifs/'
+class DesktopPet(QLabel):
+    def __init__(self, gif_path):
+        super().__init__()
 
-# Categories of event numbers
-idle_nums = [1, 2, 3, 4, 5]
-walk_left_nums = [6, 7]
-walk_right_nums = [8, 9]
+        # Load the GIF
+        self.movie = QMovie(gif_path)
+        print("Loading GIF from:", gif_path)
+        print("Movie valid?", self.movie.isValid())
+        print("Frame count:", self.movie.frameCount())
 
-def event(cycle, check, event_number, x):
-    """Decide which animation state to enter based on event_number."""
-    print(f"[EVENT] cycle={cycle}, check={check}, event_number={event_number}, x={x}")
+        # Make window frameless & always on top
+        # Qt.Tool hides it from the Dock on macOS
+        self.setWindowFlags(Qt.FramelessWindowHint | 
+                            Qt.WindowStaysOnTopHint |
+                            Qt.Tool)
 
-    if event_number in idle_nums:
-        check = 0
-        print(" -> Switching to IDLE")
-        window.after(400, update, cycle, check, event_number, x)
+        # Enable per-pixel alpha (transparent background)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
 
-    elif event_number in walk_left_nums:
-        check = 1
-        print(" -> Walking LEFT")
-        window.after(100, update, cycle, check, event_number, x)
+        # Optionally force an initial size to ensure the label isn't 0x0
+        self.resize(200, 200)
 
-    elif event_number in walk_right_nums:
-        check = 2
-        print(" -> Walking RIGHT")
-        window.after(100, update, cycle, check, event_number, x)
+        # Assign & start the GIF
+        self.setMovie(self.movie)
+        self.movie.start()
 
-def gif_cycle(cycle, frames, event_number, first_num, last_num):
-    """Advance to next frame in the animation. If at end, reset & pick new event_number."""
-    if cycle < len(frames) - 1:
-        cycle += 1
-    else:
-        cycle = 0
-        event_number = random.randrange(first_num, last_num + 1)
-    return cycle, event_number
+    def position_at_bottom_left(self, y_offset=63):
+        """Place the pet near the bottom-left corner."""
+        screen_rect = QApplication.desktop().availableGeometry()
+        screen_width = screen_rect.width()
+        screen_height = screen_rect.height()
 
-def update(cycle, check, event_number, x):
-    """Pick the right frame based on check (animation state), then re-schedule event()."""
-    print(f"[UPDATE] cycle={cycle}, check={check}, event_number={event_number}, x={x}")
+        pet_width = self.width()
+        pet_height = self.height()
 
-    if check == 0:
-        # Idle
-        frame = idle_frames[cycle]
-        cycle, event_number = gif_cycle(cycle, idle_frames, event_number, 1, 9)
+        x = 0
+        y = screen_height - pet_height + y_offset
+        self.move(x, y)
 
-    elif check == 1:
-        # Walk left
-        frame = walk_left_frames[cycle]
-        cycle, event_number = gif_cycle(cycle, walk_left_frames, event_number, 1, 9)
-        x -= 5  # Move left a bit
+    def position_at_bottom_right(self, y_offset=63):
+        """Place the pet near the bottom-right corner."""
+        screen_rect = QApplication.desktop().availableGeometry()
+        screen_width = screen_rect.width()
+        screen_height = screen_rect.height()
 
-    elif check == 2:
-        # Walk right
-        frame = walk_right_frames[cycle]
-        cycle, event_number = gif_cycle(cycle, walk_right_frames, event_number, 1, 9)
-        x += 5  # Move right a bit
+        pet_width = self.width()
+        pet_height = self.height()
 
-    # Update window geometry — ensure we use a plus sign for both x & y
-    window.geometry(f'100x100+{x}+400')
+        x = screen_width - 128
+        y = screen_height - pet_height + y_offset
+        self.move(x, y)
 
-    # Update the label
-    label.configure(image=frame)
-    label.image = frame  # keep a reference
-    # Schedule the next event
-    window.after(100, event, cycle, check, event_number, x)
+def main():
+    app = QApplication(sys.argv)
 
-# Create window
-window = tk.Tk()
-window.title("Desktop Pet")
-# If you prefer a normal window for debugging, comment out the next line:
-# window.overrideredirect(True)
+    # Create first pet (bottom-left)
+    pet_left = DesktopPet("Gifs/Johnny_Idle_4x.gif")
+    pet_left.show()
+    # Let PyQt update the widget size
+    app.processEvents()
+    pet_left.position_at_bottom_left()
 
-label = tk.Label(window, bd=0)
-label.pack()
+    # Create second pet (bottom-right) - can be the same or a different GIF
+    pet_right = DesktopPet("Gifs/Nelly_Idle_4x.gif")
+    pet_right.show()
+    app.processEvents()
+    pet_right.position_at_bottom_right()
 
-# Load your GIF frames
-# Make sure the '24' and '8' below match the actual number of frames in each GIF
-idle_frames = [tk.PhotoImage(file=impath+'Johnny_idle.gif', format='gif -index %i' % i) for i in range(24)]
-walk_left_frames = [tk.PhotoImage(file=impath+'Johnny_walk_left.gif', format='gif -index %i' % i) for i in range(8)]
-walk_right_frames = [tk.PhotoImage(file=impath+'Johnny_walk_right.gif', format='gif -index %i' % i) for i in range(8)]
+    sys.exit(app.exec_())
 
-# Debug: print how many frames we loaded
-print(f"Idle frames loaded: {len(idle_frames)}")
-print(f"Walk left frames loaded: {len(walk_left_frames)}")
-print(f"Walk right frames loaded: {len(walk_right_frames)}")
-
-# Start the animation
-window.after(1, update, cycle, check, event_number, x)
-window.mainloop()
+if __name__ == '__main__':
+    main()
